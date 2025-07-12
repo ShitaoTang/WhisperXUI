@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Whisper Web UI</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 2em;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin-top: 10px;
+            cursor: pointer;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 8px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        pre {
+            background: #f8f8f8;
+            padding: 1em;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow: auto;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .mpv-button {
+            margin-left: 1em;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>🎙️ Upload your audio/video file</h2>
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="media" accept="audio/*,video/*" required><br><br>
+    
+        <label><input type="checkbox" name="target_langs" value="zh-cn"> 中文（简体）</label><br>
+        <label><input type="checkbox" name="target_langs" value="zh-hk"> 中文（繁體）</label><br>
+        <label><input type="checkbox" name="target_langs" value="ja"> 日本語</label><br>
+        <label><input type="checkbox" name="target_langs" value="ko"> 한국어</label><br>
+    
+        <button type="submit">Transcribe</button>
+    </form>
+
+
+    {% if srt_content %}
+    <div class="header">
+        <h3>📝 Subtitles:</h3>
+        <button class="mpv-button" onclick="playWithMPV()">🎞️ Play with MPV</button>
+    </div>
+
+
+    <pre>{{ srt_content }}</pre>
+
+    <script>
+        function playWithMPV() {
+            fetch("/play/{{ filename }}", { method: "POST" })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert("🎬 MPV launched!");
+                    } else {
+                        alert("❌ Error: " + data.error);
+                    }
+                });
+        }
+    </script>
+    {% endif %}
+</body>
+
+</html>
