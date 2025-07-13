@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Resource Monitor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+        }
+
+        h2 {
+            color: #333;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        pre {
+            background: #f8f8f8;
+            padding: 1em;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        select {
+            padding: 5px;
+            margin-bottom: 10px;
+            width: 300px;
+        }
+
+        canvas {
+            max-width: 100%;
+            margin-top: 20px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="section">
+        <h2>🖥️ Real-Time Server Resource Usage</h2>
+        <table id="realTimeTable">
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>CPU Usage (%)</td>
+                    <td id="cpu">Loading...</td>
+                </tr>
+                <tr>
+                    <td>Memory Usage (%)</td>
+                    <td id="memory_percent">Loading...</td>
+                </tr>
+                <tr>
+                    <td>Memory Used / Total (MB)</td>
+                    <td id="memory_used">Loading...</td>
+                </tr>
+                <tr>
+                    <td>GPU Load (%)</td>
+                    <td id="gpu_load">Loading...</td>
+                </tr>
+                <tr>
+                    <td>GPU Memory Used / Total (MB)</td>
+                    <td id="gpu_memory">Loading...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>📊 Historical Resource Usage</h2>
+        <label for="taskSelect">Select Task:</label>
+        <select id="taskSelect" onchange="loadTaskData()">
+            <option value="">Select a task</option>
+        </select>
+        <canvas id="resourceChart"></canvas>
+        <table id="historyTable" style="display: none;">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>CPU (%)</th>
+                    <th>Memory Used (MB)</th>
+                    <th>Memory (%)</th>
+                    <th>GPU Load (%)</th>
+                    <th>GPU Memory Used (MB)</th>
+                </tr>
+            </thead>
+            <tbody id="historyTableBody"></tbody>
+        </table>
+    </div>
+
+    <script>
+        let chartInstance = null;
+
+        // 实时资源更新
+        function updateRealTimeStatus() {
+            fetch('/status')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('cpu').textContent = data.cpu ? data.cpu.toFixed(2) + '%' : 'N/A';
+                    document.getElementById('memory_percent').textContent = data.memory ? data.memory.percent.toFixed(2) + '%' : 'N/A';
+                    document.getElementById('memory_used').textContent = data.memory ?
+                        `${(data.memory.used / 1024 / 1024).toFixed(2)} / ${(data.memory.total / 1024 / 1024).toFixed(2)}` : 'N/A';
+                    document.getElementById('gpu_load').textContent = data.gpus && data.gpus.length > 0 ?
+                        (data.gpus[0].load * 100).toFixed(2) + '%' : 'N/A';
+                    document.getElementById('gpu_memory').textContent = data.gpus && data.gpus.length > 0 ?
+                        `${data.gpus[0].memoryUsed} / ${data.gpus[0].memoryTotal}` : 'N/A';
+                })
+                .catch(err => console.error('Error fetching status:', err));
+        }
+
+        // 获取任务列表
+        function loadTaskList() {
+            fetch('/task_list')
+                .then(res => res.json())
+                .then(data => {
+                    const select = document.getElementById('taskSelect');
+                    select.innerHTML = '<option value="">Select a task</option>';
+                    data.tasks.forEach(task => {
+                        const option = document.createElement('option');
+                        option.value = encodeURIComponent(task);
+                        option.textContent = task;
+                        select.appendChild(option);
+                    });
+                })
+                .catch(err => console.error('Error fetching task list:', err));
+        }
+
+        // 加载历史数据并更新表格和图表
+        function loadTaskData() {
+            const taskId = document.getElementById('taskSelect').value;
+            if (!taskId) {
+                document.getElementById('historyTable').style.display = 'none';
+                document.getElementById('resourceChart').style.display = 'none';
+                return;
+            }
+
+            fetch(`/resource_data/${taskId}`)
+                .then(res => res.json())
+                .then(data => {
+                    const tableBody = document.getElementById('historyTableBody');
+                    tableBody.innerHTML = '';
+                    const timestamps = [];
+                    const cpuData = [];
+                    const gpuData = [];
+
+                    data.forEach(row => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${new Date(row.Timestamp * 1000).toLocaleString()}</td>
+                            <td>${row.CPU_Percent.toFixed(2)}</td>
+                            <td>${(row.Memory_Used / 1024 / 1024).toFixed(2)}</td>
+                            <td>${row.Memory_Percent.toFixed(2)}</td>
+                            <td>${row.GPU_Load.toFixed(2)}</td>
+                            <td>${row.GPU_Memory_Used}</td>
+                        `;
+                        tableBody.appendChild(tr);
+                        timestamps.push(new Date(row.Timestamp * 1000).toLocaleTimeString());
+                        cpuData.push(row.CPU_Percent);
+                        gpuData.push(row.GPU_Load);
+                    });
+
+                    document.getElementById('historyTable').style.display = 'table';
+                    document.getElementById('resourceChart').style.display = 'block';
+
+                    if (chartInstance) chartInstance.destroy();
+                    const ctx = document.getElementById('resourceChart').getContext('2d');
+                    chartInstance = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: timestamps,
+                            datasets: [
+                                {
+                                    label: 'CPU Usage (%)',
+                                    data: cpuData,
+                                    borderColor: '#4CAF50',
+                                    fill: false
+                                },
+                                {
+                                    label: 'GPU Load (%)',
+                                    data: gpuData,
+                                    borderColor: '#2196F3',
+                                    fill: false
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 100,
+                                    title: { display: true, text: 'Percentage (%)' }
+                                },
+                                x: {
+                                    title: { display: true, text: 'Time' }
+                                }
+                            }
+                        }
+                    });
+                })
+                .catch(err => console.error('Error fetching task data:', err));
+        }
+
+        // 初始化
+        updateRealTimeStatus();
+        setInterval(updateRealTimeStatus, 2000);
+        loadTaskList();
+    </script>
+</body>
+
+</html>
