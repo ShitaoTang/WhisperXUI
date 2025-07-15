@@ -1,10 +1,9 @@
 from flask import Flask, request, render_template, redirect, url_for, send_from_directory, jsonify
 import os
 import subprocess
-from utils import translate, log_info, log_error, log_warn
+from utils import translate, log_info, log_error, log_warn, get_gpu_info
 from dotenv import load_dotenv
 import psutil
-import GPUtil
 import time
 from threading import Thread, Lock
 import csv
@@ -20,7 +19,7 @@ def collect():
         usage = {
             "cpu": psutil.cpu_percent(interval=None),
             "memory": psutil.virtual_memory()._asdict(),
-            "gpus": [gpu.__dict__ for gpu in GPUtil.getGPUs()]
+            "gpus": get_gpu_info()
         }
         with lock:
             rs_stats.append((time.time(), usage))
@@ -56,7 +55,7 @@ def save_rs_stats(task_id, start_time, end_time):
             usage = {
                 "cpu": psutil.cpu_percent(interval=None),
                 "memory": psutil.virtual_memory()._asdict(),
-                "gpus": [gpu.__dict__ for gpu in GPUtil.getGPUs()]
+                "gpus": get_gpu_info()
             }
     
     with open(csv_path, 'w', newline='', encoding='utf-8') as f:

@@ -53,6 +53,8 @@ make
 
 Ensure models/ contains at least one model (e.g. ggml-base.en.bin). If not, download it manually or via models/download-ggml-model.sh. You can check the [whisper.cpp documentation](https://github.com/ggerganov/whisper.cpp) for more details.
 
+**⚠️Note:** `gen.sh` uses whisper.cpp/models/ggml-base.en.bin for transcription. If you want to apply other models, just download it and rewrite the path in `gen.sh`.
+
 ### 3. Install MPV
 
 - On macOS:
