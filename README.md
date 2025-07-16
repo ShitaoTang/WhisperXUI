@@ -101,7 +101,9 @@ http://127.0.0.1:5000
 
 ## Demo
 
-[Here]() is a demo video of WhisperXUI in action.
+Here is a demo video of WhisperXUI in action.
+
+https://github.com/user-attachments/assets/1dd40b1a-9046-4956-854c-73fef51a596d
 
 ## Limitations
 
